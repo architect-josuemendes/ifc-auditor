@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IFC Auditor — BIM Model Validation Tool · Josue Mendes</title>
+  <meta name="description" content="Open-source CLI tool that validates IFC files against configurable BEP/EIR rules before they reach the CDE. Pure Python, YAML-configurable, HTML reports. ISO 19650-aligned.">
+
+  <!-- Fonts: editorial pairing — Fraunces (display) + Newsreader (body) + JetBrains Mono (technical) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:         #FAFAF6;
+      --bg-soft:    #F2EFE6;
+      --ink:        #1A1F2E;
+      --ink-soft:   #4A5160;
+      --ink-muted:  #8A8676;
+      --rule:       #D9D3C5;
+      --accent:     #A4471F;     /* Caracas terracota */
+      --accent-soft:#F0E0D6;
+      --critical:   #B91C1C;
+      --resolved:   #15803D;
+      --major:      #F59E0B;
+      --minor:      #6B7280;
+      --display:    'Fraunces', 'Times New Roman', serif;
+      --body:       'Newsreader', Georgia, serif;
+      --mono:       'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: var(--body);
+      font-size: 18px;
+      line-height: 1.65;
+      font-weight: 400;
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ============ LAYOUT ============ */
+    .page { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+    .narrow { max-width: 720px; }
+    .wide   { max-width: 1080px; }
+
+    /* ============ NAV ============ */
+    nav.top {
+      padding: 28px 32px;
+      max-width: 1180px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    nav.top a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 200ms; }
+    nav.top a:hover { border-bottom-color: var(--accent); }
+    nav.top .brand { font-family: var(--display); font-weight: 600; font-style: italic; font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+
+    /* ============ HERO ============ */
+    .hero { padding: 80px 0 60px; }
+    .hero .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-family: var(--display);
+      font-weight: 300;
+      font-size: clamp(40px, 6vw, 72px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin: 0 0 36px;
+      max-width: 900px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--accent);
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 32px;
+      padding: 32px 0;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      margin-top: 48px;
+    }
+    .hero-meta dt {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+    }
+    .hero-meta dd {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 400;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    /* ============ MEGA NUMBER ============ */
+    .mega {
+      padding: 100px 0 80px;
+      text-align: center;
+      border-bottom: 1px solid var(--rule);
+    }
+    .mega .pre {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 32px;
+    }
+    .mega .numbers {
+      font-family: var(--display);
+      font-size: clamp(96px, 16vw, 200px);
+      font-weight: 300;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(24px, 5vw, 80px);
+    }
+    .mega .num-pass { color: var(--resolved); }
+    .mega .num-sep  { color: var(--ink-muted); font-weight: 300; font-size: 0.5em; align-self: center; }
+    .mega .num-total{ color: var(--ink-soft); }
+    .mega .caption {
+      font-family: var(--display);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 22px;
+      margin-top: 36px;
+      color: var(--ink-soft);
+    }
+
+    /* ============ CLI BLOCK ============ */
+    .cli-block {
+      margin: 56px 0 0;
+      background: var(--ink);
+      padding: 32px 40px;
+      overflow-x: auto;
+    }
+    .cli-block pre {
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.9;
+      color: #E5E7EB;
+      margin: 0;
+      white-space: pre;
+    }
+    .cli-block .prompt { color: var(--accent); }
+    .cli-block .comment { color: var(--ink-muted); }
+    .cli-block .pass-line { color: #34D399; }
+    .cli-block .fail-line { color: #F87171; }
+    .cli-block .cmd { color: #FDE68A; }
+
+    /* ============ SECTIONS ============ */
+    section { padding: 80px 0; }
+    section + section { border-top: 1px solid var(--rule); }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+      display: block;
+    }
+    h2 {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(32px, 4vw, 48px);
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+      margin: 0 0 32px;
+      color: var(--ink);
+    }
+    h2 em { font-style: italic; color: var(--accent); }
+
+    p {
+      margin: 0 0 1.4em;
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--ink);
+    }
+    p strong { font-weight: 600; color: var(--ink); }
+
+    /* ============ APPROACH LIST ============ */
+    ol.approach { padding: 0; margin: 32px 0 0; list-style: none; counter-reset: step; }
+    ol.approach li {
+      counter-increment: step;
+      padding: 24px 0 24px 64px;
+      border-top: 1px solid var(--rule);
+      position: relative;
+      font-size: 17px;
+      line-height: 1.65;
+    }
+    ol.approach li:last-child { border-bottom: 1px solid var(--rule); }
+    ol.approach li::before {
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      left: 0;
+      top: 28px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+    ol.approach li strong { display: block; font-family: var(--display); font-weight: 600; font-size: 18px; margin-bottom: 6px; color: var(--ink); }
+
+    /* ============ RULES TABLE ============ */
+    .rules-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 40px 0;
+      font-family: var(--body);
+    }
+    .rules-table th, .rules-table td {
+      text-align: left;
+      padding: 16px 12px 16px 0;
+      border-bottom: 1px solid var(--rule);
+      font-size: 15px;
+      vertical-align: top;
+    }
+    .rules-table th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      font-weight: 500;
+      padding-bottom: 12px;
+    }
+    .rules-table td.rule-id {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      white-space: nowrap;
+      padding-right: 24px;
+    }
+    .rules-table td.rule-name { font-size: 15px; color: var(--ink); line-height: 1.5; }
+    .rules-table td.rule-sev {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .sev-critical { color: var(--critical); }
+    .sev-major    { color: var(--major); }
+    .sev-minor    { color: var(--minor); }
+
+    /* ============ DEMO IFRAME ============ */
+    .demo-frame-wrap {
+      margin: 56px 0 0;
+      border: 1px solid var(--rule);
+      background: #fff;
+      overflow: hidden;
+    }
+    .demo-frame-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: var(--bg-soft);
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+    .demo-frame-label .dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .demo-frame-label a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid var(--accent-soft);
+      transition: border-color 200ms;
+    }
+    .demo-frame-label a:hover { border-bottom-color: var(--accent); }
+    .demo-frame-wrap iframe {
+      width: 100%;
+      height: 680px;
+      border: none;
+      display: block;
+    }
+
+    /* ============ CHART CAPTION ============ */
+    .chart-caption {
+      margin-top: 24px;
+      padding: 24px 0 0 32px;
+      border-left: 2px solid var(--accent);
+      background: transparent;
+    }
+    .chart-caption .voice {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 14px;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .chart-caption p { margin: 0; font-size: 17px; line-height: 1.7; color: var(--ink-soft); }
+    .chart-caption p + p { margin-top: 12px; }
+
+    /* ============ RESULTS TABLE ============ */
+    .results {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 40px 0;
+      font-family: var(--body);
+    }
+    .results th, .results td {
+      text-align: left;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--rule);
+      font-size: 16px;
+    }
+    .results th {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+    .results td.metric { font-family: var(--display); font-weight: 500; }
+    .results td.value  { font-family: var(--mono); font-size: 15px; }
+    .results td.status { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .status-pass { color: var(--resolved); }
+    .status-fail { color: var(--critical); }
+
+    /* ============ STACK ============ */
+    .stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 32px;
+    }
+    .stack span {
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 8px 14px;
+      background: var(--bg-soft);
+      color: var(--ink);
+      border: 1px solid var(--rule);
+      border-radius: 0;
+    }
+
+    /* ============ CTA ============ */
+    .cta {
+      padding: 100px 0;
+      text-align: center;
+      background: var(--ink);
+      color: var(--bg);
+      margin-top: 80px;
+    }
+    .cta h2 { color: var(--bg); }
+    .cta p { color: var(--bg-soft); max-width: 600px; margin: 0 auto 40px; }
+    .cta .btn-group { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .cta a {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--bg);
+      padding: 18px 40px;
+      border: 1px solid var(--bg-soft);
+      text-decoration: none;
+      transition: background 200ms, color 200ms, border-color 200ms;
+    }
+    .cta a:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .cta a.secondary { border-color: #3A3F50; color: #9CA3AF; }
+    .cta a.secondary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+    footer {
+      padding: 48px 32px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      border-top: 1px solid var(--rule);
+    }
+    footer a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 720px) {
+      body { font-size: 17px; }
+      .page { padding: 0 22px; }
+      nav.top { padding: 22px; flex-direction: column; gap: 8px; align-items: flex-start; }
+      .hero { padding: 40px 0 40px; }
+      .mega { padding: 60px 0; }
+      section { padding: 56px 0; }
+      ol.approach li { padding-left: 48px; }
+      .rules-table th, .rules-table td { font-size: 13px; padding: 12px 8px 12px 0; }
+      .demo-frame-wrap iframe { height: 480px; }
+      .cli-block { padding: 20px 22px; }
+      .cli-block pre { font-size: 12px; }
+      .results th, .results td { font-size: 14px; padding: 14px 0; }
+    }
+
+    /* ============ ANIMATION ============ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero h1, .hero .label, .mega .numbers, .mega .caption {
+      animation: fadeUp 800ms cubic-bezier(.2,.7,.3,1) both;
+    }
+    .hero .label { animation-delay: 0ms; }
+    .hero h1    { animation-delay: 100ms; }
+    .mega .numbers  { animation-delay: 200ms; }
+    .mega .caption  { animation-delay: 400ms; }
+  </style>
+</head>
+<body>
+
+<nav class="top">
+  <a href="https://josuemendes.vercel.app" class="brand">Josue Mendes</a>
+  <div>
+    <a href="https://josuemendes.vercel.app/work">Work</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="https://josuemendes.vercel.app/about">About</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="mailto:josuemendesv@gmail.com">Contact</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="label">Case Study · Open-source BIM Tool · 2024</div>
+    <h1>IFC Auditor — model quality as <em>protocol, not guesswork.</em></h1>
+    <p class="narrow" style="font-size: 21px; color: var(--ink-soft); font-family: var(--body); font-weight: 300;">
+      A command-line tool that validates IFC files against configurable BEP/EIR rules before they reach the Common Data Environment. Pure Python, YAML-configurable, navigable HTML reports.
+    </p>
+
+    <dl class="hero-meta">
+      <div><dt>Type</dt><dd>Open-source CLI tool</dd></div>
+      <div><dt>Domain</dt><dd>BIM / IFC validation</dd></div>
+      <div><dt>Standard</dt><dd>ISO 19650-aligned</dd></div>
+      <div><dt>Language</dt><dd>Python 3.10+</dd></div>
+      <div><dt>Rules (included)</dt><dd>10 configurable</dd></div>
+      <div><dt>Formats</dt><dd>IFC4 · IFC4X3</dd></div>
+    </dl>
+  </header>
+
+  <!-- ===================== MEGA NUMBER ===================== -->
+  <section class="mega">
+    <div class="pre">Demo audit result</div>
+    <div class="numbers">
+      <span class="num-pass">4</span>
+      <span class="num-sep">/</span>
+      <span class="num-total">10</span>
+    </div>
+    <div class="caption">rules passed on a synthetic IFC with intentional defects &middot; 5 issues surfaced for remediation</div>
+  </section>
+
+  <!-- ===================== CONTEXT ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">01 · Problem</span>
+      <h2>Validation happens too <em>late.</em></h2>
+      <p>
+        Most clash-detection and quality-control workflows run <strong>after</strong> the IFC file reaches the CDE. By then, finding that a discipline forgot to populate <code style="font-family:var(--mono);font-size:15px;background:var(--bg-soft);padding:2px 6px;">Pset_WallCommon.FireRating</code> on 144 walls means another federation cycle, another coordination meeting, another week lost.
+      </p>
+      <p>
+        BIM Managers receive IFC deliverables from sub-consultants and need to verify compliance with the project's BEP and EIR before accepting the file. Manual inspection in a viewer is slow, error-prone, and produces no audit trail. The typical outcome: issues that could have been caught in five seconds get discovered in the next coordination meeting.
+      </p>
+      <p>
+        The fix is simple: <strong>move validation left.</strong> Run it on every consultant delivery. Return a clean HTML report with exactly what's missing. Send it back with actionable items before the file is even accepted into the CDE.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">02 · How it works</span>
+      <h2>Sixty seconds from <em>IFC to report.</em></h2>
+      <p>The full pipeline is two Python files, one YAML config, and one Jinja2 template. It's intentionally small — readable in 15 minutes, adaptable to any BEP in under an hour.</p>
+    </div>
+
+    <div class="wide" style="margin-top:48px;">
+      <ol class="approach">
+        <li>
+          <strong>Parse the IFC with ifcopenshell</strong>
+          The model is loaded once. All checks operate on the in-memory representation — no viewer, no proprietary API, no cloud dependency. Runs offline.
+        </li>
+        <li>
+          <strong>Evaluate rules from a YAML config</strong>
+          Each rule specifies a check type, target class, property, severity, and parameters. Seven check types are built in: <code style="font-family:var(--mono);font-size:14px;">regex</code>, <code style="font-family:var(--mono);font-size:14px;">schema</code>, <code style="font-family:var(--mono);font-size:14px;">count_min</code>, <code style="font-family:var(--mono);font-size:14px;">property_required</code>, <code style="font-family:var(--mono);font-size:14px;">material_required</code>, <code style="font-family:var(--mono);font-size:14px;">spatial_orphans</code>, <code style="font-family:var(--mono);font-size:14px;">unique_guids</code>. Adding a new type is ~15 lines.
+        </li>
+        <li>
+          <strong>Classify failures by severity</strong>
+          Every rule carries a severity level. <strong style="color:var(--critical)">Critical</strong> failures block CDE acceptance and produce exit code 1 — CI/CD-ready. <strong style="color:var(--major)">Major</strong> failures require remediation before construction. <strong style="color:var(--minor)">Minor</strong> failures are logged as RFI-track items.
+        </li>
+        <li>
+          <strong>Render a navigable HTML report</strong>
+          The Jinja2 template produces a self-contained HTML file with per-rule pass/fail, coverage percentages, and a drill-down table of failing GlobalIDs and their reason codes. No dependencies required to open the report.
+        </li>
+        <li>
+          <strong>Return the report before accepting the file</strong>
+          Drop the tool into your delivery workflow. The consultant gets a machine-generated QA report within seconds of submission — not at the next federation meeting.
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== RULES ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">03 · Included rules</span>
+      <h2>10 rules across 5 <em>categories.</em></h2>
+      <p>The shipped <code style="font-family:var(--mono);font-size:15px;background:var(--bg-soft);padding:2px 6px;">rules.yaml</code> covers the most common BEP/EIR gaps encountered in multi-discipline coordination. Copy it and customize per project.</p>
+    </div>
+
+    <div class="wide">
+      <table class="rules-table">
+        <thead>
+          <tr>
+            <th>Rule ID</th>
+            <th>What it checks</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rule-id">naming_iso19650</td>
+            <td class="rule-name"><strong>ISO 19650 naming</strong> — <code style="font-family:var(--mono);font-size:13px;">IfcProject.Name</code> matches Annex C pattern</td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">schema_version</td>
+            <td class="rule-name"><strong>Schema version</strong> — IFC schema is IFC4 or IFC4X3</td>
+            <td class="rule-sev sev-critical">Critical</td>
+          </tr>
+          <tr>
+            <td class="rule-id">storey_count</td>
+            <td class="rule-name"><strong>Storey presence</strong> — at least one <code style="font-family:var(--mono);font-size:13px;">IfcBuildingStorey</code> exists</td>
+            <td class="rule-sev sev-critical">Critical</td>
+          </tr>
+          <tr>
+            <td class="rule-id">spatial_orphans</td>
+            <td class="rule-name"><strong>Spatial assignment</strong> — all physical elements assigned to a spatial structure</td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">wall_firerating</td>
+            <td class="rule-name"><strong>Fire rating</strong> — all walls have <code style="font-family:var(--mono);font-size:13px;">Pset_WallCommon.FireRating</code></td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">wall_loadbearing</td>
+            <td class="rule-name"><strong>Load-bearing flag</strong> — all walls have <code style="font-family:var(--mono);font-size:13px;">Pset_WallCommon.LoadBearing</code></td>
+            <td class="rule-sev sev-minor">Minor</td>
+          </tr>
+          <tr>
+            <td class="rule-id">door_isexternal</td>
+            <td class="rule-name"><strong>Door classification</strong> — all doors have <code style="font-family:var(--mono);font-size:13px;">Pset_DoorCommon.IsExternal</code></td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">wall_material</td>
+            <td class="rule-name"><strong>Wall material</strong> — all walls have material assignment</td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">slab_material</td>
+            <td class="rule-name"><strong>Slab material</strong> — all slabs have material assignment</td>
+            <td class="rule-sev sev-major">Major</td>
+          </tr>
+          <tr>
+            <td class="rule-id">unique_guids</td>
+            <td class="rule-name"><strong>GUID uniqueness</strong> — all <code style="font-family:var(--mono);font-size:13px;">GlobalId</code>s are unique across the model</td>
+            <td class="rule-sev sev-critical">Critical</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="narrow" style="margin-top:0;">
+      <div class="chart-caption">
+        <span class="voice">Design note</span>
+        <p>Severity follows the same logic as coordination BCFs: critical blocks acceptance, major blocks construction sign-off, minor is RFI-tracked. The same three-tier model used across the ROCKOs coordination workflow.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CLI DEMO ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">04 · Live demo</span>
+      <h2>Run it. Read the <em>report.</em></h2>
+      <p>The CLI produces a summary to stdout and a full navigable HTML report. Exit code is <code style="font-family:var(--mono);font-size:15px;">0</code> if all critical rules pass, <code style="font-family:var(--mono);font-size:15px;">1</code> otherwise — CI/CD drop-in.</p>
+    </div>
+
+    <div class="wide">
+      <div class="cli-block">
+        <pre><span class="comment"># Clone and install</span>
+<span class="prompt">$</span> <span class="cmd">git clone https://github.com/architect-josuemendes/ifc-auditor.git &amp;&amp; cd ifc-auditor</span>
+<span class="prompt">$</span> <span class="cmd">pip install -r requirements.txt</span>
+
+<span class="comment"># Generate the synthetic test IFC (30 walls, 12 doors, intentional defects)</span>
+<span class="prompt">$</span> <span class="cmd">python generate_sample.py</span>
+<span class="pass-line">✓ Synthetic IFC generated: examples/sample.ifc</span>
+
+<span class="comment"># Run the audit</span>
+<span class="prompt">$</span> <span class="cmd">python audit.py examples/sample.ifc --rules rules.yaml --output report.html</span>
+<span class="pass-line">▸ Loading examples/sample.ifc...</span>
+<span class="pass-line">▸ 4/10 rules passed (40%)</span>
+<span class="fail-line">  Critical failures: 0</span>
+<span class="fail-line">  Major failures:    5</span>
+<span class="fail-line">  Minor failures:    1</span>
+<span class="pass-line">▸ Rendering report.html...</span>
+<span class="pass-line">✓ Report written: report.html</span></pre>
+      </div>
+
+      <!-- Embedded report iframe -->
+      <div class="demo-frame-wrap" style="margin-top: 32px;">
+        <div class="demo-frame-label">
+          <span><span class="dot"></span>Live audit report — sample.ifc · 4/10 rules passed</span>
+          <a href="examples/sample_report.html" target="_blank">Open full report ↗</a>
+        </div>
+        <iframe src="examples/sample_report.html" title="IFC Audit Report — sample.ifc" loading="lazy"></iframe>
+      </div>
+
+      <div class="chart-caption" style="margin-top: 32px;">
+        <span class="voice">What the report shows</span>
+        <p>Every rule produces a pass/fail verdict, a coverage percentage (passed elements / total checked), and a drill-down table of failing GlobalIDs with machine-readable reason codes. The report is fully self-contained — no server, no dependencies. Send it as an attachment, open it in any browser.</p>
+        <p>The 40% pass rate on the synthetic model is intentional: the test IFC ships with missing <code style="font-family:var(--mono);font-size:14px;">FireRating</code> properties, orphaned elements, and non-compliant naming — exactly what a real consultant delivery might look like before QA.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RESULTS ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">05 · Sample audit results</span>
+      <h2>10 checks, <em>2 seconds,</em> actionable output.</h2>
+      <p>The synthetic IFC is a 3-storey office building with ~30 walls, 12 doors, 24 windows, and 3 slabs. Defects are seeded deterministically so the audit output is reproducible.</p>
+    </div>
+
+    <div class="wide">
+      <table class="results">
+        <thead>
+          <tr>
+            <th style="width:28%">Rule</th>
+            <th style="width:14%">Severity</th>
+            <th style="width:44%">Findings</th>
+            <th style="width:14%">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="metric">ISO 19650 Naming</td>
+            <td class="value sev-major">Major</td>
+            <td>Project name "Sample Office Building" does not match Annex C pattern</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Schema Version</td>
+            <td class="value sev-critical">Critical</td>
+            <td>IFC4 — within approved list</td>
+            <td class="status status-pass">Pass</td>
+          </tr>
+          <tr>
+            <td class="metric">Storey Presence</td>
+            <td class="value sev-critical">Critical</td>
+            <td>3 × IfcBuildingStorey found (≥ 1 required)</td>
+            <td class="status status-pass">Pass</td>
+          </tr>
+          <tr>
+            <td class="metric">Spatial Orphans</td>
+            <td class="value sev-major">Major</td>
+            <td>2 furnishing elements not assigned to any storey</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Wall FireRating</td>
+            <td class="value sev-major">Major</td>
+            <td>~9/30 walls missing Pset_WallCommon.FireRating (30% gap)</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Wall LoadBearing</td>
+            <td class="value sev-minor">Minor</td>
+            <td>Same walls missing LoadBearing flag (seeded together)</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Door IsExternal</td>
+            <td class="value sev-major">Major</td>
+            <td>~6/12 doors missing Pset_DoorCommon.IsExternal (50% gap)</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Wall Material</td>
+            <td class="value sev-major">Major</td>
+            <td>~5/30 walls missing material assignment (15% gap)</td>
+            <td class="status status-fail">Fail</td>
+          </tr>
+          <tr>
+            <td class="metric">Slab Material</td>
+            <td class="value sev-major">Major</td>
+            <td>All 3 slabs have material assignment (Concrete C30/37)</td>
+            <td class="status status-pass">Pass</td>
+          </tr>
+          <tr>
+            <td class="metric">GUID Uniqueness</td>
+            <td class="value sev-critical">Critical</td>
+            <td>No duplicate GlobalIds detected across model</td>
+            <td class="status status-pass">Pass</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== TECH STACK ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">06 · Tech stack</span>
+      <h2>Small, readable, <em>extensible.</em></h2>
+      <p>Two Python files total. The entire pipeline — parsing, rule evaluation, report rendering — is under 400 lines. No proprietary dependencies. No cloud calls. Runs on any machine with Python 3.10.</p>
+      <p>To add a new check type: write one function (~15 lines) and add one entry to the <code style="font-family:var(--mono);font-size:15px;">CHECKS</code> dict. To use it: add a rule block to your YAML. That's the full extension surface.</p>
+
+      <div class="stack">
+        <span>Python 3.10+</span>
+        <span>ifcopenshell 0.8+</span>
+        <span>click</span>
+        <span>Jinja2</span>
+        <span>PyYAML</span>
+        <span>IFC4 / IFC4X3</span>
+        <span>ISO 19650</span>
+        <span>HTML reports</span>
+        <span>CI/CD-ready</span>
+      </div>
+
+      <div class="chart-caption" style="margin-top:48px;">
+        <span class="voice">CI / CD integration</span>
+        <p>The CLI exits with status <code style="font-family:var(--mono);font-size:14px;">1</code> when any critical rule fails, making it drop-in for any CI pipeline. Add it as a gate on your model delivery step — the model only reaches the CDE if critical checks pass.</p>
+      </div>
+
+      <div class="cli-block" style="margin-top: 24px;">
+        <pre><span class="comment"># .github/workflows/ifc-audit.yml</span>
+<span class="pass-line">- run: pip install -r requirements.txt</span>
+<span class="pass-line">- run: python audit.py models/architecture.ifc --rules bep.yaml</span>
+<span class="comment"># exits 1 on any critical failure → blocks merge</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RELATIONSHIP TO CS1 ===================== -->
+  <section>
+    <div class="narrow">
+      <span class="section-label">07 · Context</span>
+      <h2>The missing <em>upstream gate</em> for CS1.</h2>
+      <p>
+        The ROCKOs Caracas coordination project started with 340 critical clashes detected at first federation. A significant share of those clashes were traceable to upstream data quality issues: elements missing property assignments, orphaned geometry, inconsistent naming that broke automated clash filters.
+      </p>
+      <p>
+        IFC Auditor is the tool that should have run on every consultant delivery <em>before</em> federation. The 94% clash reduction achieved over 10 weeks was coordination work — but some of it was avoidable with a pre-acceptance gate. This tool closes that loop.
+      </p>
+      <p>
+        Both tools are now part of the same open-source coordination toolkit: <strong>ifc-auditor</strong> validates deliverables upstream; <strong>bim-clash-analytics</strong> tracks and resolves what slips through.
+      </p>
+      <p style="margin-top: 24px;">
+        <a href="https://rockos-caracas.vercel.app" style="font-family:var(--mono);font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft);">CS1 — ROCKOs Caracas: 340 → 20 clashes ↗</a>
+      </p>
+    </div>
+  </section>
+
+</div><!-- /.page -->
+
+<!-- ===================== CTA ===================== -->
+<div class="cta">
+  <div class="page">
+    <h2>Use it on your next IFC delivery.</h2>
+    <p>Open-source, MIT license. Clone, adapt your <code style="font-family:var(--mono);font-size:14px;background:rgba(255,255,255,0.08);padding:2px 6px;">rules.yaml</code> to your BEP, and run it before the model reaches the CDE.</p>
+    <div class="btn-group">
+      <a href="https://github.com/architect-josuemendes/ifc-auditor" target="_blank">GitHub Repository ↗</a>
+      <a href="mailto:josuemendesv@gmail.com" class="secondary">Discuss a Project</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <a href="https://josuemendes.vercel.app">josuemendes.vercel.app</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/architect-josuemendes/ifc-auditor">architect-josuemendes/ifc-auditor</a>
+  &nbsp;·&nbsp;
+  MIT License
+</footer>
+
+</body>
+</html>

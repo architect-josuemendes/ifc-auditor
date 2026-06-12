@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IFC Audit Report — {{ audit.ifc_file }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:#FAFAF6; --bg-soft:#F2EFE6; --ink:#1A1F2E; --ink-soft:#4A5160;
+      --ink-muted:#8A8676; --rule:#D9D3C5; --accent:#A4471F;
+      --critical:#B91C1C; --resolved:#15803D; --major:#F59E0B; --minor:#6B7280;
+      --display:'Fraunces',serif; --body:'Newsreader',serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+    body{font-family:var(--body);font-size:17px;line-height:1.6;font-weight:400;
+         -webkit-font-smoothing:antialiased;}
+    .page{max-width:1100px;margin:0 auto;padding:0 32px;}
+
+    /* Header */
+    header{padding:60px 0 40px;border-bottom:1px solid var(--rule);}
+    .label{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;
+           text-transform:uppercase;color:var(--accent);margin-bottom:20px;}
+    h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,5vw,52px);
+       line-height:1.1;letter-spacing:-0.015em;margin:0 0 16px;}
+    h1 em{font-style:italic;color:var(--accent);}
+    .subtitle{font-size:18px;color:var(--ink-soft);font-weight:300;margin:0 0 28px;}
+
+    /* Meta */
+    dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+            gap:24px;padding:24px 0;border-top:1px solid var(--rule);
+            border-bottom:1px solid var(--rule);margin:24px 0 0;}
+    dl.meta dt{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;
+               text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px;}
+    dl.meta dd{font-family:var(--display);font-size:16px;margin:0;}
+
+    /* Summary */
+    section.summary{padding:60px 0;border-bottom:1px solid var(--rule);
+                    text-align:center;}
+    .status-badge{display:inline-block;padding:8px 24px;
+                  font-family:var(--mono);font-size:13px;letter-spacing:0.18em;
+                  text-transform:uppercase;font-weight:500;}
+    .status-badge.pass{background:var(--resolved);color:white;}
+    .status-badge.fail{background:var(--critical);color:white;}
+    .pass-rate{font-family:var(--display);font-weight:300;
+               font-size:clamp(80px,14vw,160px);line-height:1;margin:24px 0;
+               letter-spacing:-0.04em;}
+    .pass-rate.good{color:var(--resolved);}
+    .pass-rate.bad{color:var(--critical);}
+    .pass-rate.warn{color:var(--major);}
+    .pass-rate sub{font-size:0.3em;color:var(--ink-muted);font-weight:400;
+                   vertical-align:middle;}
+    .summary-tagline{font-family:var(--display);font-style:italic;font-size:20px;
+                     color:var(--ink-soft);margin:16px 0 36px;}
+    .severity-counts{display:flex;justify-content:center;gap:32px;
+                     padding:24px 0;border-top:1px solid var(--rule);}
+    .severity-counts > div{text-align:center;}
+    .severity-counts .count{font-family:var(--display);font-size:36px;
+                            font-weight:400;display:block;}
+    .severity-counts .crit{color:var(--critical);}
+    .severity-counts .maj{color:var(--major);}
+    .severity-counts .min{color:var(--minor);}
+    .severity-counts .label-sm{font-family:var(--mono);font-size:10px;
+                               letter-spacing:0.15em;text-transform:uppercase;
+                               color:var(--ink-muted);margin-top:4px;}
+
+    /* Rules */
+    section.rules{padding:60px 0;}
+    section.rules > h2{font-family:var(--display);font-weight:400;
+                       font-size:32px;margin:0 0 32px;}
+    .rule{border-bottom:1px solid var(--rule);padding:24px 0;display:grid;
+          grid-template-columns:60px 1fr auto;gap:24px;align-items:start;}
+    .rule:last-child{border-bottom:none;}
+    .rule .status-pill{font-family:var(--mono);font-size:10px;
+                       letter-spacing:0.15em;text-transform:uppercase;
+                       padding:4px 8px;font-weight:500;text-align:center;
+                       border-radius:0;height:fit-content;}
+    .rule .status-pill.pass{background:var(--resolved);color:white;}
+    .rule .status-pill.fail{background:var(--critical);color:white;}
+    .rule .status-pill.warn{background:var(--major);color:white;}
+    .rule .info h3{font-family:var(--display);font-weight:500;font-size:18px;
+                   margin:0 0 6px;color:var(--ink);}
+    .rule .info .rule-id{font-family:var(--mono);font-size:11px;
+                         color:var(--ink-muted);letter-spacing:0.08em;
+                         text-transform:uppercase;}
+    .rule .info .rule-msg{margin:8px 0 0;color:var(--ink-soft);font-size:15px;}
+    .rule .metrics{text-align:right;font-family:var(--mono);font-size:13px;
+                   color:var(--ink-soft);white-space:nowrap;}
+    .rule .metrics .coverage{font-family:var(--display);font-size:24px;
+                             font-weight:500;display:block;}
+    .rule .metrics .coverage.bad{color:var(--critical);}
+    .rule .metrics .coverage.good{color:var(--resolved);}
+    .rule .severity-tag{font-family:var(--mono);font-size:9px;
+                        letter-spacing:0.15em;text-transform:uppercase;
+                        padding:2px 6px;background:var(--bg-soft);
+                        color:var(--ink-soft);margin-left:8px;border-radius:2px;}
+    .rule .severity-tag.critical{background:#fee2e2;color:var(--critical);}
+    .rule .severity-tag.major{background:#fef3c7;color:#92400e;}
+    .rule .severity-tag.minor{background:#f3f4f6;color:var(--minor);}
+
+    /* Failing elements drill-down */
+    .failing-list{margin-top:16px;background:var(--bg-soft);padding:16px;
+                  font-family:var(--mono);font-size:11px;
+                  border-left:2px solid var(--critical);}
+    .failing-list .item{padding:6px 0;border-bottom:1px solid var(--rule);
+                        display:grid;grid-template-columns:auto 1fr auto;
+                        gap:12px;}
+    .failing-list .item:last-child{border-bottom:none;}
+    .failing-list .item .gid{color:var(--ink-muted);}
+    .failing-list .item .name{color:var(--ink);}
+    .failing-list .item .reason{color:var(--critical);}
+    .failing-list summary{cursor:pointer;font-family:var(--body);font-size:14px;
+                          color:var(--accent);font-style:italic;
+                          margin-bottom:8px;list-style:none;}
+    .failing-list summary::before{content:"▸ ";}
+    .failing-list[open] summary::before{content:"▾ ";}
+
+    /* Footer */
+    footer{padding:32px;text-align:center;font-family:var(--mono);
+           font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+           color:var(--ink-muted);border-top:1px solid var(--rule);}
+    footer a{color:var(--accent);text-decoration:none;}
+
+    @media (max-width:720px){
+      .page{padding:0 20px;}
+      .rule{grid-template-columns:50px 1fr;gap:16px;}
+      .rule .metrics{grid-column:1/-1;text-align:left;padding-top:8px;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <div class="label">IFC Audit Report</div>
+    <h1>{{ audit.ifc_file }}</h1>
+    <p class="subtitle">Validation against <em>{{ audit.project_info.bep_reference or 'BEP/EIR' }}</em> requirements</p>
+
+    <dl class="meta">
+      <div><dt>File</dt><dd>{{ audit.ifc_file }}</dd></div>
+      <div><dt>Schema</dt><dd>{{ audit.ifc_schema }}</dd></div>
+      <div><dt>Size</dt><dd>{{ "%.1f"|format(audit.ifc_size_kb) }} KB</dd></div>
+      <div><dt>Generated</dt><dd>{{ audit.generated_at }}</dd></div>
+      <div><dt>Rules applied</dt><dd>{{ audit.summary.total_rules }}</dd></div>
+    </dl>
+  </header>
+
+  <section class="summary">
+    {% set s = audit.summary %}
+    {% if s.overall_status == 'PASS' %}
+      <span class="status-badge pass">✓ Overall Pass</span>
+    {% else %}
+      <span class="status-badge fail">✗ Overall Fail</span>
+    {% endif %}
+
+    {% set pct = (s.pass_rate * 100)|int %}
+    <div class="pass-rate {% if pct >= 90 %}good{% elif pct >= 60 %}warn{% else %}bad{% endif %}">
+      {{ pct }}<sub>%</sub>
+    </div>
+    <div class="summary-tagline">{{ s.passed_rules }} of {{ s.total_rules }} rules passed</div>
+
+    <div class="severity-counts">
+      <div>
+        <span class="count crit">{{ s.failed_critical }}</span>
+        <div class="label-sm">Critical fails</div>
+      </div>
+      <div>
+        <span class="count maj">{{ s.failed_major }}</span>
+        <div class="label-sm">Major fails</div>
+      </div>
+      <div>
+        <span class="count min">{{ s.failed_minor }}</span>
+        <div class="label-sm">Minor fails</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rules">
+    <h2>Rule-by-rule results</h2>
+
+    {% for r in audit.results %}
+    <div class="rule">
+      <div>
+        <span class="status-pill {{ r.status }}">{{ r.status }}</span>
+      </div>
+      <div class="info">
+        <h3>{{ r.rule_name }}
+          <span class="severity-tag {{ r.severity }}">{{ r.severity }}</span>
+        </h3>
+        <div class="rule-id">{{ r.rule_id }}</div>
+        <p class="rule-msg">{{ r.message }}</p>
+
+        {% if r.failing_elements %}
+        <details class="failing-list">
+          <summary>Show {{ r.failing_elements|length }} failing element{{ '' if r.failing_elements|length == 1 else 's' }}</summary>
+          {% for el in r.failing_elements %}
+          <div class="item">
+            <span class="gid">{{ el.id }}</span>
+            <span class="name">{{ el.name }}</span>
+            <span class="reason">{{ el.reason }}</span>
+          </div>
+          {% endfor %}
+          {% if r.failed > r.failing_elements|length %}
+          <div class="item">
+            <span class="gid">…</span>
+            <span class="name">+{{ r.failed - r.failing_elements|length }} more</span>
+            <span></span>
+          </div>
+          {% endif %}
+        </details>
+        {% endif %}
+      </div>
+      <div class="metrics">
+        {% if r.total > 0 %}
+        <span class="coverage {% if r.coverage >= 0.9 %}good{% elif r.coverage < 0.6 %}bad{% endif %}">
+          {{ r.coverage_pct }}
+        </span>
+        {{ r.passed }} / {{ r.total }}
+        {% else %}
+        <span class="coverage">—</span>
+        n/a
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+</div><!-- /.page -->
+
+<footer>
+  Generated by <a href="https://github.com/architect-josuemendes/ifc-auditor">ifc-auditor</a>
+  · Open-source under MIT · <a href="https://josuemendes.vercel.app">Josue Mendes</a>
+</footer>
+
+</body>
+</html>

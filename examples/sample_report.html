@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IFC Audit Report — sample.ifc</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:#FAFAF6; --bg-soft:#F2EFE6; --ink:#1A1F2E; --ink-soft:#4A5160;
+      --ink-muted:#8A8676; --rule:#D9D3C5; --accent:#A4471F;
+      --critical:#B91C1C; --resolved:#15803D; --major:#F59E0B; --minor:#6B7280;
+      --display:'Fraunces',serif; --body:'Newsreader',serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+    body{font-family:var(--body);font-size:17px;line-height:1.6;font-weight:400;
+         -webkit-font-smoothing:antialiased;}
+    .page{max-width:1100px;margin:0 auto;padding:0 32px;}
+
+    /* Header */
+    header{padding:60px 0 40px;border-bottom:1px solid var(--rule);}
+    .label{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;
+           text-transform:uppercase;color:var(--accent);margin-bottom:20px;}
+    h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,5vw,52px);
+       line-height:1.1;letter-spacing:-0.015em;margin:0 0 16px;}
+    h1 em{font-style:italic;color:var(--accent);}
+    .subtitle{font-size:18px;color:var(--ink-soft);font-weight:300;margin:0 0 28px;}
+
+    /* Meta */
+    dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+            gap:24px;padding:24px 0;border-top:1px solid var(--rule);
+            border-bottom:1px solid var(--rule);margin:24px 0 0;}
+    dl.meta dt{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;
+               text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px;}
+    dl.meta dd{font-family:var(--display);font-size:16px;margin:0;}
+
+    /* Summary */
+    section.summary{padding:60px 0;border-bottom:1px solid var(--rule);
+                    text-align:center;}
+    .status-badge{display:inline-block;padding:8px 24px;
+                  font-family:var(--mono);font-size:13px;letter-spacing:0.18em;
+                  text-transform:uppercase;font-weight:500;}
+    .status-badge.pass{background:var(--resolved);color:white;}
+    .status-badge.fail{background:var(--critical);color:white;}
+    .pass-rate{font-family:var(--display);font-weight:300;
+               font-size:clamp(80px,14vw,160px);line-height:1;margin:24px 0;
+               letter-spacing:-0.04em;}
+    .pass-rate.good{color:var(--resolved);}
+    .pass-rate.bad{color:var(--critical);}
+    .pass-rate.warn{color:var(--major);}
+    .pass-rate sub{font-size:0.3em;color:var(--ink-muted);font-weight:400;
+                   vertical-align:middle;}
+    .summary-tagline{font-family:var(--display);font-style:italic;font-size:20px;
+                     color:var(--ink-soft);margin:16px 0 36px;}
+    .severity-counts{display:flex;justify-content:center;gap:32px;
+                     padding:24px 0;border-top:1px solid var(--rule);}
+    .severity-counts > div{text-align:center;}
+    .severity-counts .count{font-family:var(--display);font-size:36px;
+                            font-weight:400;display:block;}
+    .severity-counts .crit{color:var(--critical);}
+    .severity-counts .maj{color:var(--major);}
+    .severity-counts .min{color:var(--minor);}
+    .severity-counts .label-sm{font-family:var(--mono);font-size:10px;
+                               letter-spacing:0.15em;text-transform:uppercase;
+                               color:var(--ink-muted);margin-top:4px;}
+
+    /* Rules */
+    section.rules{padding:60px 0;}
+    section.rules > h2{font-family:var(--display);font-weight:400;
+                       font-size:32px;margin:0 0 32px;}
+    .rule{border-bottom:1px solid var(--rule);padding:24px 0;display:grid;
+          grid-template-columns:60px 1fr auto;gap:24px;align-items:start;}
+    .rule:last-child{border-bottom:none;}
+    .rule .status-pill{font-family:var(--mono);font-size:10px;
+                       letter-spacing:0.15em;text-transform:uppercase;
+                       padding:4px 8px;font-weight:500;text-align:center;
+                       border-radius:0;height:fit-content;}
+    .rule .status-pill.pass{background:var(--resolved);color:white;}
+    .rule .status-pill.fail{background:var(--critical);color:white;}
+    .rule .status-pill.warn{background:var(--major);color:white;}
+    .rule .info h3{font-family:var(--display);font-weight:500;font-size:18px;
+                   margin:0 0 6px;color:var(--ink);}
+    .rule .info .rule-id{font-family:var(--mono);font-size:11px;
+                         color:var(--ink-muted);letter-spacing:0.08em;
+                         text-transform:uppercase;}
+    .rule .info .rule-msg{margin:8px 0 0;color:var(--ink-soft);font-size:15px;}
+    .rule .metrics{text-align:right;font-family:var(--mono);font-size:13px;
+                   color:var(--ink-soft);white-space:nowrap;}
+    .rule .metrics .coverage{font-family:var(--display);font-size:24px;
+                             font-weight:500;display:block;}
+    .rule .metrics .coverage.bad{color:var(--critical);}
+    .rule .metrics .coverage.good{color:var(--resolved);}
+    .rule .severity-tag{font-family:var(--mono);font-size:9px;
+                        letter-spacing:0.15em;text-transform:uppercase;
+                        padding:2px 6px;background:var(--bg-soft);
+                        color:var(--ink-soft);margin-left:8px;border-radius:2px;}
+    .rule .severity-tag.critical{background:#fee2e2;color:var(--critical);}
+    .rule .severity-tag.major{background:#fef3c7;color:#92400e;}
+    .rule .severity-tag.minor{background:#f3f4f6;color:var(--minor);}
+
+    /* Failing elements drill-down */
+    .failing-list{margin-top:16px;background:var(--bg-soft);padding:16px;
+                  font-family:var(--mono);font-size:11px;
+                  border-left:2px solid var(--critical);}
+    .failing-list .item{padding:6px 0;border-bottom:1px solid var(--rule);
+                        display:grid;grid-template-columns:auto 1fr auto;
+                        gap:12px;}
+    .failing-list .item:last-child{border-bottom:none;}
+    .failing-list .item .gid{color:var(--ink-muted);}
+    .failing-list .item .name{color:var(--ink);}
+    .failing-list .item .reason{color:var(--critical);}
+    .failing-list summary{cursor:pointer;font-family:var(--body);font-size:14px;
+                          color:var(--accent);font-style:italic;
+                          margin-bottom:8px;list-style:none;}
+    .failing-list summary::before{content:"▸ ";}
+    .failing-list[open] summary::before{content:"▾ ";}
+
+    /* Footer */
+    footer{padding:32px;text-align:center;font-family:var(--mono);
+           font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+           color:var(--ink-muted);border-top:1px solid var(--rule);}
+    footer a{color:var(--accent);text-decoration:none;}
+
+    @media (max-width:720px){
+      .page{padding:0 20px;}
+      .rule{grid-template-columns:50px 1fr;gap:16px;}
+      .rule .metrics{grid-column:1/-1;text-align:left;padding-top:8px;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <div class="label">IFC Audit Report</div>
+    <h1>sample.ifc</h1>
+    <p class="subtitle">Validation against <em>EIR-v2.1</em> requirements</p>
+
+    <dl class="meta">
+      <div><dt>File</dt><dd>sample.ifc</dd></div>
+      <div><dt>Schema</dt><dd>IFC4</dd></div>
+      <div><dt>Size</dt><dd>15.9 KB</dd></div>
+      <div><dt>Generated</dt><dd>2026-06-03 08:14</dd></div>
+      <div><dt>Rules applied</dt><dd>10</dd></div>
+    </dl>
+  </header>
+
+  <section class="summary">
+      <span class="status-badge pass">✓ Overall Pass</span>
+
+    <div class="pass-rate bad">
+      40<sub>%</sub>
+    </div>
+    <div class="summary-tagline">4 of 10 rules passed</div>
+
+    <div class="severity-counts">
+      <div>
+        <span class="count crit">0</span>
+        <div class="label-sm">Critical fails</div>
+      </div>
+      <div>
+        <span class="count maj">5</span>
+        <div class="label-sm">Major fails</div>
+      </div>
+      <div>
+        <span class="count min">1</span>
+        <div class="label-sm">Minor fails</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rules">
+    <h2>Rule-by-rule results</h2>
+
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>Project name follows ISO 19650 Annex C convention
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">naming_iso19650</div>
+        <p class="rule-msg">'Sample Office Building' does not match required pattern: ^[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}$</p>
+
+        <details class="failing-list">
+          <summary>Show 1 failing element</summary>
+          <div class="item">
+            <span class="gid">3IVK50bYzF2fY8jqM2ChOe</span>
+            <span class="name">Sample Office Building</span>
+            <span class="reason">Does not match ISO 19650 naming convention</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage bad">
+          0%
+        </span>
+        0 / 1
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill pass">pass</span>
+      </div>
+      <div class="info">
+        <h3>IFC schema is approved version (IFC4 / IFC4X3)
+          <span class="severity-tag critical">critical</span>
+        </h3>
+        <div class="rule-id">schema_version</div>
+        <p class="rule-msg">Schema IFC4 is approved</p>
+
+      </div>
+      <div class="metrics">
+        <span class="coverage good">
+          100%
+        </span>
+        1 / 1
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill pass">pass</span>
+      </div>
+      <div class="info">
+        <h3>Project has at least one storey
+          <span class="severity-tag critical">critical</span>
+        </h3>
+        <div class="rule-id">storey_count</div>
+        <p class="rule-msg">3 × IfcBuildingStorey (≥ 1 required)</p>
+
+      </div>
+      <div class="metrics">
+        <span class="coverage good">
+          100%
+        </span>
+        3 / 3
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>All physical elements are assigned to a spatial structure
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">spatial_orphans</div>
+        <p class="rule-msg">2 orphan elements (not in spatial structure)</p>
+
+        <details class="failing-list">
+          <summary>Show 2 failing elements</summary>
+          <div class="item">
+            <span class="gid">1tAr2nxVv1Vx9CvCcQxUmC</span>
+            <span class="name">Orphan-Element-000</span>
+            <span class="reason">IfcFurnishingElement not assigned to a spatial structure</span>
+          </div>
+          <div class="item">
+            <span class="gid">1nvToTX$9Dfvxua1ubfn4y</span>
+            <span class="name">Orphan-Element-001</span>
+            <span class="reason">IfcFurnishingElement not assigned to a spatial structure</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage good">
+          97%
+        </span>
+        69 / 71
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>All walls have Pset_WallCommon.FireRating defined
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">wall_firerating</div>
+        <p class="rule-msg">11/30 IfcWalls missing Pset_WallCommon.FireRating</p>
+
+        <details class="failing-list">
+          <summary>Show 11 failing elements</summary>
+          <div class="item">
+            <span class="gid">0B_VEVVoTFsR$AvxDmLW73</span>
+            <span class="name">Wall-00-002</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">0D_rVX3HvAPhAvtNPi5hK4</span>
+            <span class="name">Wall-00-005</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">3aie5KN5HCpAG6r57h7QcE</span>
+            <span class="name">Wall-00-006</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">2$$879llzAveZOp06JUedb</span>
+            <span class="name">Wall-01-001</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">1owTx$Hbb5DerQHMRfkXdo</span>
+            <span class="name">Wall-01-003</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">0r10DJU_X8PRarTRMr2zUY</span>
+            <span class="name">Wall-01-005</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">19J5nMamvFa9l3mqNYKbi6</span>
+            <span class="name">Wall-01-006</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">3j1Mg3jQfEavR1qmW3Uywe</span>
+            <span class="name">Wall-01-007</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">2$MVwZ3$b7DRMCYPOtf9jU</span>
+            <span class="name">Wall-02-000</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">1M_8LsLvj8YwjSSPuJwgXh</span>
+            <span class="name">Wall-02-007</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+          <div class="item">
+            <span class="gid">3OIbuJuhf2Zxm2UCWG0prS</span>
+            <span class="name">Wall-02-009</span>
+            <span class="reason">Missing Pset_WallCommon.FireRating</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage ">
+          63%
+        </span>
+        19 / 30
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>All walls have Pset_WallCommon.LoadBearing defined
+          <span class="severity-tag minor">minor</span>
+        </h3>
+        <div class="rule-id">wall_loadbearing</div>
+        <p class="rule-msg">11/30 IfcWalls missing Pset_WallCommon.LoadBearing</p>
+
+        <details class="failing-list">
+          <summary>Show 11 failing elements</summary>
+          <div class="item">
+            <span class="gid">0B_VEVVoTFsR$AvxDmLW73</span>
+            <span class="name">Wall-00-002</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">0D_rVX3HvAPhAvtNPi5hK4</span>
+            <span class="name">Wall-00-005</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">3aie5KN5HCpAG6r57h7QcE</span>
+            <span class="name">Wall-00-006</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">2$$879llzAveZOp06JUedb</span>
+            <span class="name">Wall-01-001</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">1owTx$Hbb5DerQHMRfkXdo</span>
+            <span class="name">Wall-01-003</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">0r10DJU_X8PRarTRMr2zUY</span>
+            <span class="name">Wall-01-005</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">19J5nMamvFa9l3mqNYKbi6</span>
+            <span class="name">Wall-01-006</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">3j1Mg3jQfEavR1qmW3Uywe</span>
+            <span class="name">Wall-01-007</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">2$MVwZ3$b7DRMCYPOtf9jU</span>
+            <span class="name">Wall-02-000</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">1M_8LsLvj8YwjSSPuJwgXh</span>
+            <span class="name">Wall-02-007</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+          <div class="item">
+            <span class="gid">3OIbuJuhf2Zxm2UCWG0prS</span>
+            <span class="name">Wall-02-009</span>
+            <span class="reason">Missing Pset_WallCommon.LoadBearing</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage ">
+          63%
+        </span>
+        19 / 30
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>All doors have Pset_DoorCommon.IsExternal defined
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">door_isexternal</div>
+        <p class="rule-msg">5/12 IfcDoors missing Pset_DoorCommon.IsExternal</p>
+
+        <details class="failing-list">
+          <summary>Show 5 failing elements</summary>
+          <div class="item">
+            <span class="gid">05tF1S3VDAhOGSRhsGY73j</span>
+            <span class="name">Door-00-001</span>
+            <span class="reason">Missing Pset_DoorCommon.IsExternal</span>
+          </div>
+          <div class="item">
+            <span class="gid">3H5qIFtq17rfIdDXB2Hq0M</span>
+            <span class="name">Door-01-000</span>
+            <span class="reason">Missing Pset_DoorCommon.IsExternal</span>
+          </div>
+          <div class="item">
+            <span class="gid">25vf3u4Cz28hbBotVkexNJ</span>
+            <span class="name">Door-01-001</span>
+            <span class="reason">Missing Pset_DoorCommon.IsExternal</span>
+          </div>
+          <div class="item">
+            <span class="gid">2_s78K1pv08vmNiB61IC7F</span>
+            <span class="name">Door-01-002</span>
+            <span class="reason">Missing Pset_DoorCommon.IsExternal</span>
+          </div>
+          <div class="item">
+            <span class="gid">37PkckWG1BFBgTWIyj83wB</span>
+            <span class="name">Door-02-000</span>
+            <span class="reason">Missing Pset_DoorCommon.IsExternal</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage bad">
+          58%
+        </span>
+        7 / 12
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill fail">fail</span>
+      </div>
+      <div class="info">
+        <h3>All walls have material assignment
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">wall_material</div>
+        <p class="rule-msg">4/30 IfcWalls missing material</p>
+
+        <details class="failing-list">
+          <summary>Show 4 failing elements</summary>
+          <div class="item">
+            <span class="gid">0gBYxBP753m84UDr4B5JTb</span>
+            <span class="name">Wall-00-001</span>
+            <span class="reason">No material assigned</span>
+          </div>
+          <div class="item">
+            <span class="gid">3aie5KN5HCpAG6r57h7QcE</span>
+            <span class="name">Wall-00-006</span>
+            <span class="reason">No material assigned</span>
+          </div>
+          <div class="item">
+            <span class="gid">3j1Mg3jQfEavR1qmW3Uywe</span>
+            <span class="name">Wall-01-007</span>
+            <span class="reason">No material assigned</span>
+          </div>
+          <div class="item">
+            <span class="gid">3yhtdxtMP1OP2lgJ7Z_gFK</span>
+            <span class="name">Wall-02-002</span>
+            <span class="reason">No material assigned</span>
+          </div>
+        </details>
+      </div>
+      <div class="metrics">
+        <span class="coverage ">
+          87%
+        </span>
+        26 / 30
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill pass">pass</span>
+      </div>
+      <div class="info">
+        <h3>All slabs have material assignment
+          <span class="severity-tag major">major</span>
+        </h3>
+        <div class="rule-id">slab_material</div>
+        <p class="rule-msg">All 3 IfcSlabs have material assignment</p>
+
+      </div>
+      <div class="metrics">
+        <span class="coverage good">
+          100%
+        </span>
+        3 / 3
+      </div>
+    </div>
+    <div class="rule">
+      <div>
+        <span class="status-pill pass">pass</span>
+      </div>
+      <div class="info">
+        <h3>All GlobalIds are unique
+          <span class="severity-tag critical">critical</span>
+        </h3>
+        <div class="rule-id">unique_guids</div>
+        <p class="rule-msg">All 139 GlobalIds unique</p>
+
+      </div>
+      <div class="metrics">
+        <span class="coverage good">
+          100%
+        </span>
+        139 / 139
+      </div>
+    </div>
+  </section>
+
+</div><!-- /.page -->
+
+<footer>
+  Generated by <a href="https://github.com/architect-josuemendes/ifc-auditor">ifc-auditor</a>
+  · Open-source under MIT · <a href="https://josuemendes.vercel.app">Josue Mendes</a>
+</footer>
+
+</body>
+</html>

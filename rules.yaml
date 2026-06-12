@@ -1,0 +1,108 @@
+# ============================================================
+# IFC AUDIT RULES — example configuration
+# ============================================================
+# Customize this file per project (BEP / EIR requirements).
+# Each rule has a unique `id`, a human-readable `name`, a `severity`,
+# and a `check` block specifying the validation type and parameters.
+#
+# Severities: critical | major | minor
+#   - critical: blocks model acceptance
+#   - major:    requires remediation before construction
+#   - minor:    documented as RFI-track items
+# ============================================================
+
+project_info:
+  name: "Sample Office Building Audit"
+  bep_reference: "EIR-v2.1"
+  ifc_schemas_allowed: [IFC4, IFC4X3]
+
+rules:
+
+  # --- Project-level checks ---
+  - id: naming_iso19650
+    name: "Project name follows ISO 19650 Annex C convention"
+    severity: major
+    check:
+      type: regex
+      target: IfcProject.Name
+      pattern: "^[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}$"
+
+  - id: schema_version
+    name: "IFC schema is approved version (IFC4 / IFC4X3)"
+    severity: critical
+    check:
+      type: schema
+      allowed: [IFC4, IFC4X3]
+
+  # --- Spatial structure checks ---
+  - id: storey_count
+    name: "Project has at least one storey"
+    severity: critical
+    check:
+      type: count_min
+      ifc_class: IfcBuildingStorey
+      min: 1
+
+  - id: spatial_orphans
+    name: "All physical elements are assigned to a spatial structure"
+    severity: major
+    check:
+      type: spatial_orphans
+      element_classes:
+        - IfcWall
+        - IfcDoor
+        - IfcWindow
+        - IfcSlab
+        - IfcColumn
+        - IfcBeam
+        - IfcFurnishingElement
+
+  # --- Property completeness checks ---
+  - id: wall_firerating
+    name: "All walls have Pset_WallCommon.FireRating defined"
+    severity: major
+    check:
+      type: property_required
+      ifc_class: IfcWall
+      pset: Pset_WallCommon
+      property: FireRating
+
+  - id: wall_loadbearing
+    name: "All walls have Pset_WallCommon.LoadBearing defined"
+    severity: minor
+    check:
+      type: property_required
+      ifc_class: IfcWall
+      pset: Pset_WallCommon
+      property: LoadBearing
+
+  - id: door_isexternal
+    name: "All doors have Pset_DoorCommon.IsExternal defined"
+    severity: major
+    check:
+      type: property_required
+      ifc_class: IfcDoor
+      pset: Pset_DoorCommon
+      property: IsExternal
+
+  # --- Material assignment checks ---
+  - id: wall_material
+    name: "All walls have material assignment"
+    severity: major
+    check:
+      type: material_required
+      ifc_class: IfcWall
+
+  - id: slab_material
+    name: "All slabs have material assignment"
+    severity: major
+    check:
+      type: material_required
+      ifc_class: IfcSlab
+
+  # --- GUID integrity ---
+  - id: unique_guids
+    name: "All GlobalIds are unique"
+    severity: critical
+    check:
+      type: unique_guids

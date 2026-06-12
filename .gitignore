@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+venv/
+.venv/
+env/
+.env/
+
+.vscode/
+.idea/
+*.swp
+
+.DS_Store
+._*
+Thumbs.db
+
+# Generated artifacts (kept in examples/ for the repo, ignored elsewhere)
+/report.html
+*.bak.ifc
